@@ -4,7 +4,6 @@ import ReactFlow, {
   ReactFlowProvider, useReactFlow, Handle, Position
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import * as htmlToImage from 'html-to-image';
 
 const globalStyles = `
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
@@ -25,29 +24,33 @@ const globalStyles = `
     -webkit-font-smoothing: antialiased;
     box-sizing: border-box;
   }
+  
+  /* NEW: Allow strong tags to be bold */
+  strong { font-weight: 700 !important; }
 
   .canvas-label {
     position: absolute;
     z-index: 10;
-    font-size: 13px !important;
-    color: rgba(0,0,0,0.35);
+    font-size: 18px !important;
+    color: rgba(0,0,0,0.8);
     pointer-events: none;
     letter-spacing: 0.02em;
     line-height: 1;
     text-transform: lowercase;
+    font-weight: 500 !important;
   }
 
   /* ── Panel UI: title + buttons, top-right of right panel ── */
   .panel-ui {
     position: absolute;
-    top: 28px;        /* pulled down from edge */
+    top: 28px;        
     right: 20px;
     z-index: 50;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     pointer-events: none;
-    gap: 2px;         /* tight uniform gap between all items */
+    gap: 2px;         
   }
   .panel-ui > * { pointer-events: all; }
 
@@ -62,7 +65,7 @@ const globalStyles = `
     text-shadow: none !important;
     text-transform: lowercase !important;
     text-align: right;
-    margin: 0 0 6px 0;  /* small gap below title before buttons */
+    margin: 0 0 6px 0;  
     padding: 0;
     white-space: nowrap;
   }
@@ -72,7 +75,7 @@ const globalStyles = `
     cursor: pointer; color: #000; font-size: 14px;
     text-transform: lowercase; outline: none; box-shadow: none;
     text-align: right; display: block; line-height: 1.6;
-    margin: 0;
+    margin: 0 14px 0 0; /* UPDATED: Pulled inwards by 14px to align with the 'a' in the title */
   }
   .howto-btn:hover, .category-btn:hover { opacity: 0.4; }
 
@@ -102,12 +105,21 @@ const globalStyles = `
     border-radius: 50% !important; box-shadow: none !important; outline: none !important;
   }
 
-  /* ── Glass overlay (how-to + category) ── */
+  /* ── Glass overlays ── */
   .glass-overlay {
     position: absolute; inset: 0; z-index: 200;
     display: flex; align-items: center; justify-content: center;
     pointer-events: none;
   }
+  
+  /* NEW: Anchor the concept pop-up to the left of the screen */
+  .glass-overlay-left {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: flex-start;
+    padding-left: 60px;
+    pointer-events: none;
+  }
+
   .glass-card {
     position: relative; pointer-events: all;
     width: min(420px, 85%); padding: 44px 48px; border-radius: 20px;
@@ -121,6 +133,20 @@ const globalStyles = `
     margin: 0; font-size: 15px !important; line-height: 1.75;
     color: #111; text-align: left; text-transform: lowercase;
   }
+  
+  /* NEW: Override the global lowercase rule just for the concept text */
+  .concept-text * {
+    text-transform: none !important;
+  }
+  .concept-title {
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 28px !important;
+    margin: 0 0 24px 0;
+    color: #000;
+    text-transform: lowercase !important;
+    font-weight: 400 !important;
+  }
+
   .glass-close {
     position: absolute; top: 18px; right: 22px;
     background: none; border: none; font-size: 18px;
@@ -177,13 +203,6 @@ const globalStyles = `
     margin-top: 12px; text-align: center;
     border-top: 1px dashed rgba(0,0,0,0.3); padding-top: 12px;
   }
-  .save-diagram-btn {
-    background: #000; color: #fff; border: none;
-    border-radius: 8px; padding: 10px 16px; margin-top: 8px;
-    font-size: 13px !important; cursor: pointer; text-transform: lowercase;
-    transition: opacity 0.2s; align-self: center; width: 100%;
-  }
-  .save-diagram-btn:hover { opacity: 0.7; }
 
   /* ── Category modal ── */
   .cat-label {
@@ -253,7 +272,7 @@ function computeFitViewport(nodes, width, height, padding = 80) {
   };
 }
 
-function LeftFlow({ nodes, edges, onNodesChange, onEdgesChange, containerWidth, isCapturing }) {
+function LeftFlow({ nodes, edges, onNodesChange, onEdgesChange, containerWidth }) {
   const { setViewport } = useReactFlow();
   const memoizedNodeTypes = useMemo(() => ({ imageNode: ImageNode }), []);
   useEffect(() => {
@@ -263,17 +282,17 @@ function LeftFlow({ nodes, edges, onNodesChange, onEdgesChange, containerWidth, 
   return (
     <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
       nodeTypes={memoizedNodeTypes} minZoom={0.05} maxZoom={2}>
-      {!isCapturing && <Controls />}
+      <Controls />
     </ReactFlow>
   );
 }
 
-function RightFlow({ nodes, edges, onNodesChange, onEdgesChange, onConnect, isCapturing }) {
+function RightFlow({ nodes, edges, onNodesChange, onEdgesChange, onConnect }) {
   const memoizedNodeTypes = useMemo(() => ({ imageNode: ImageNode }), []);
   return (
     <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
       onConnect={onConnect} nodeTypes={memoizedNodeTypes} fitView minZoom={0.05} maxZoom={2}>
-      {!isCapturing && <Controls />}
+      <Controls />
     </ReactFlow>
   );
 }
@@ -287,6 +306,7 @@ export default function App() {
   const [humanEdges, setHumanEdges] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHowToOpen, setIsHowToOpen] = useState(false);
+  const [isConceptOpen, setIsConceptOpen] = useState(false);
   const [categoryInput, setCategoryInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [aiMapping, setAiMapping] = useState({});
@@ -295,8 +315,6 @@ export default function App() {
   const [animateScore, setAnimateScore] = useState(false);
   const [scoreLogs, setScoreLogs] = useState([]);
   const humanFlowInstance = useRef(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-  const screenRef = useRef(null);
 
   useEffect(() => {
     fetch('https://yazzy1709-flickr-ai-backend.hf.space/api/cluster-images')
@@ -314,8 +332,9 @@ export default function App() {
           newNodes.push({
             id: labelId, type: 'default',
             position: { x: bX + 220, y: bY + 320 },
+            zIndex: 1000,
             data: { label: data.labels[clusterId] },
-            style: { background: '#FF0000', color: '#fff', padding: '8px 12px', border: '2px solid #000', borderRadius: 0 }
+            style: { background: '#FF0000', color: '#fff', padding: '12px 18px', border: '2px solid #000', borderRadius: 0, fontSize: '18px', fontWeight: 'bold' }
           });
           urls.forEach((url, ii) => {
             newAiMapping[url] = clusterId;
@@ -364,8 +383,9 @@ export default function App() {
     setHumanNodes(n => [...n, {
       id: `cat-${Date.now()}`, type: 'default',
       position: spawnPosition,
+      zIndex: 1000,
       data: { label: name },
-      style: { background: '#000', color: '#fff', padding: '10px 15px', border: '2px solid #000', borderRadius: 0 }
+      style: { background: '#000', color: '#fff', padding: '12px 18px', border: '2px solid #000', borderRadius: 0, fontSize: '18px', fontWeight: 'bold' }
     }]);
     setCategoryInput(''); setIsModalOpen(false);
   };
@@ -410,29 +430,41 @@ export default function App() {
     setTimeout(() => setAnimateScore(true), 50);
   };
 
-  const saveMapAsImage = () => {
-    if (!screenRef.current) return;
-    setIsCapturing(true);
-    setTimeout(() => {
-      htmlToImage.toPng(screenRef.current, { backgroundColor: '#ffffff' })
-        .then(dataUrl => {
-          const link = document.createElement('a');
-          link.download = `nodes-map-${new Date().toISOString().slice(0, 10)}.png`;
-          link.href = dataUrl;
-          link.click();
-          setIsCapturing(false);
-        })
-        .catch(err => { console.error(err); setIsCapturing(false); });
-    }, 100);
-  };
-
   const containerWidth = (leftWidth / 100) * window.innerWidth;
 
   return (
     <>
       <style>{globalStyles}</style>
 
-      <div ref={screenRef} style={{
+      {/* NEW: Placed the Left Concept modal here so it overlays the entire screen easily */}
+      {isConceptOpen && (
+        <div className="glass-overlay-left">
+          <div className="glass-card concept-text" style={{ width: 'min(580px, 85%)', maxHeight: '85vh', overflowY: 'auto' }}>
+            <button className="glass-close" onClick={() => setIsConceptOpen(false)}>×</button>
+            <h2 className="concept-title">+ concept</h2>
+            <p style={{ marginBottom: '1.4em' }}>
+              Understanding where meaning lies within images is fundamental to their role within visual culture. Humans process images semantically, driven by our own unique mental schemas—frameworks built from a lifetime of subjective representations and associations.
+            </p>
+            <p style={{ marginBottom: '1.4em' }}>
+              For a machine, meaning does not exist in memories, but in geometry. It is understood through the mathematical distance between specific coordinates within a 512-dimensional universe.
+            </p>
+            <p style={{ marginBottom: '1.4em' }}>
+              <strong>Schema</strong> is an interactive tool that demonstrates how these systems of understanding differ between an AI and a human, and how varying associations between images can be represented visually.
+            </p>
+            <p style={{ marginBottom: '1.4em' }}>
+              On the <strong>left</strong> side, an AI model (CLIP) calculates the mathematical similarity between images by comparing their vector distances using cosine similarity, and grouping them via K-Means clustering. This represents the mathematical truth of similarity, where meaning is defined purely by spatial relationships to create an AI's schema.
+            </p>
+            <p style={{ marginBottom: '1.4em' }}>
+              On the <strong>right</strong> side, users are invited to create their own semantically similar clusters, grouping together images they feel categorically align with one another based on human intuition.
+            </p>
+            <p style={{ marginBottom: 0 }}>
+              After creating categories and wiring the connections, users can test their subjective semantic understanding against the AI's mathematical baseline. Ultimately, <strong>Schema</strong> is designed to interactively reveal the inner workings of computer vision—holding the machine's universal geometry against our own individual truths.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div style={{
         display: 'flex', width: '100vw', height: '100vh',
         cursor: isDragging ? 'col-resize' : 'default',
         userSelect: isDragging ? 'none' : 'auto',
@@ -440,11 +472,10 @@ export default function App() {
 
         {/* LEFT */}
         <div style={{ width: `${leftWidth}%`, height: '100%', position: 'relative', overflow: 'hidden' }}>
-          <span className="canvas-label" style={{ bottom: 48, left: 32 }}>machine schema</span>
+          <span className="canvas-label" style={{ bottom: 48, left: '50%', transform: 'translateX(-50%)' }}>machine schema</span>
 
           {scorePanelVisible && (
-            <div className="glass-score" style={{ visibility: isCapturing ? 'hidden' : 'visible' }}>
-              {/* ── × close button on score panel ── */}
+            <div className="glass-score">
               <button className="glass-close" onClick={() => setScorePanelVisible(false)}>×</button>
 
               <div className="score-header">
@@ -474,7 +505,6 @@ export default function App() {
                   ))}
                   <div className="receipt-endorsement">
                     end of schematic breakdown.<br/>assessment complete.
-                    <button className="save-diagram-btn" onClick={saveMapAsImage}>save map</button>
                   </div>
                 </div>
               )}
@@ -486,7 +516,7 @@ export default function App() {
                 <p style={{ fontFamily: 'Share Tech Mono, monospace', letterSpacing: '0.1em' }}>[ fetching data... ]</p>
               </div>
             : <ReactFlowProvider>
-                <LeftFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} containerWidth={containerWidth} isCapturing={isCapturing} />
+                <LeftFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} containerWidth={containerWidth} />
               </ReactFlowProvider>
           }
         </div>
@@ -498,27 +528,36 @@ export default function App() {
         <div style={{ flex: 1, height: '100%', position: 'relative', overflow: 'hidden' }}>
           <span className="canvas-label" style={{ top: 72, left: 44 }}>your schema</span>
 
-          {/* Title + all buttons, tight together */}
-          {!isCapturing && (
-            <div className="panel-ui">
-              <h1 className="main-title">Schema</h1>
-              <button className="howto-btn" onClick={() => setIsHowToOpen(true)}>+ how to play</button>
-              {!loading && (
-                <>
-                  <button className="category-btn" onClick={() => setIsModalOpen(true)}>+ category</button>
-                  <button className="category-btn" onClick={runAccuracyTest}>+ run test</button>
-                </>
-              )}
-            </div>
-          )}
+          <div className="panel-ui">
+            <h1 className="main-title">schema</h1>
+            <button className="howto-btn" onClick={() => setIsConceptOpen(true)}>+ concept</button>
+            <button className="howto-btn" onClick={() => setIsHowToOpen(true)}>+ how to play</button>
+            {!loading && (
+              <>
+                <button className="category-btn" onClick={() => setIsModalOpen(true)}>+ category</button>
+                <button className="category-btn" onClick={runAccuracyTest}>+ run test</button>
+              </>
+            )}
+          </div>
 
           {isHowToOpen && (
-            <div className="glass-overlay">
-              <div className="glass-card">
+            <div className="glass-overlay-left">
+              <div className="glass-card concept-text" style={{ width: 'min(580px, 85%)', maxHeight: '85vh', overflowY: 'auto' }}>
                 <button className="glass-close" onClick={() => setIsHowToOpen(false)}>×</button>
-                {HOWTO_TEXT.split('\n\n').map((para, i) => (
-                  <p key={i} style={{ marginBottom: i < 2 ? '1.4em' : 0 }}>{para}</p>
-                ))}
+                <h2 className="concept-title">+ how to play</h2>
+                
+                <p style={{ marginBottom: '1.4em' }}>
+                  <strong>1. Group:</strong> Explore the ungrouped images on the right side of the canvas. Group them together by their relative associations—they only have to make sense to you.
+                </p>
+                <p style={{ marginBottom: '1.4em' }}>
+                  <strong>2. Label:</strong> Click the <strong>+ category</strong> button to generate a text node. Add a category name to label your groups. You can make as many as you like.
+                </p>
+                <p style={{ marginBottom: '1.4em' }}>
+                  <strong>3. Connect:</strong> Wire the images to your categories by clicking and dragging the connection lines from the black dots on each image to their respective label.
+                </p>
+                <p style={{ marginBottom: 0 }}>
+                  <strong>4. Assess:</strong> Once your schema is fully connected, click <strong>+ run test</strong>. Assess how closely your subjective similarity grouping of the images matches their mathematical truth.
+                </p>
               </div>
             </div>
           )}
@@ -545,7 +584,7 @@ export default function App() {
                 <p style={{ fontFamily: 'Share Tech Mono, monospace', letterSpacing: '0.1em', color: '#999' }}>[ awaiting pool... ]</p>
               </div>
             : <ReactFlowProvider>
-                <RightFlow nodes={humanNodes} edges={humanEdges} onNodesChange={onHNChange} onEdgesChange={onHEChange} onConnect={onConnect} ref={humanFlowInstance} isCapturing={isCapturing} />
+                <RightFlow nodes={humanNodes} edges={humanEdges} onNodesChange={onHNChange} onEdgesChange={onHEChange} onConnect={onConnect} ref={humanFlowInstance} />
               </ReactFlowProvider>
           }
         </div>
